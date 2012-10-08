@@ -23,9 +23,9 @@
             // the placeholders showing they will be the default values and the input fields won't be empty.
             if (this.input[0].value === '' || (loading && this.valueIsPlaceholder())) {
                 if (this.isPassword) {
-                    try {
+                    if ( !this.msie_old ) {
                         this.input[0].setAttribute('type', 'text');
-                    } catch (e) {
+                    } else {
                         this.input.before(this.fakePassword.show()).hide();
                     }
                 }
@@ -36,11 +36,19 @@
         hide : function() {
             if (this.valueIsPlaceholder() && this.input.hasClass('placeholder')) {
                 this.input.removeClass('placeholder');
-                this.input[0].value = '';
-                if (this.isPassword) {
-                    try {
+                if ( !this.isPassword || !this.msie_old ) {
+                    /* if it is password and is an old IE version, then the
+                     * original input value must not be reset, since if its
+                     * value isn't empty, the fake input will not be visible */
+                    this.input[0].value = '';
+                }
+
+                if ( this.isPassword  ) {
+                    if ( !this.msie_old ) {
                         this.input[0].setAttribute('type', 'password');
-                    } catch (e) { }
+                    } else {
+                        this.fakePassword.hide();
+                    }
                     // Restore focus for Opera and IE
                     this.input.show();
                     this.input[0].focus();
@@ -48,18 +56,20 @@
             }
         },
         valueIsPlaceholder : function() {
-            return this.input[0].value == this.input.attr('placeholder');
+            var element = this.msie_old ? this.fakePassword[0] : this.input[0];
+            return element.value == this.input.attr('placeholder');
         },
         handlePassword: function() {
             var input = this.input;
-            input.attr('realType', 'password');
             this.isPassword = true;
+
             // IE < 9 doesn't allow changing the type of password inputs
-            if ($.browser.msie && input[0].outerHTML) {
+            this.msie_old = ($.browser.msie && $.browser.version < 9);
+            if ( this.msie_old ) {
                 var fakeHTML = $(input[0].outerHTML.replace(/type=(['"])?password\1/gi, 'type=$1text$1'));
+                fakeHTML.removeAttr('name');//.removeAttr('id');
                 this.fakePassword = fakeHTML.val(input.attr('placeholder')).addClass('placeholder').focus(function() {
                     input.trigger('focus');
-                    $(this).hide();
                 });
                 $(input[0].form).submit(function() {
                     fakeHTML.remove();
